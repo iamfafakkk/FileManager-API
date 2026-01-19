@@ -1,0 +1,45 @@
+[Unit]
+Description=GoManager FileManager API Service
+# Documentation=https://github.com/your-repo/filemanager-api
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+
+# Working directory
+WorkingDirectory=/root/GOLANG/FILEMANAGER-API
+
+# Environment variables
+Environment=PORT=4000
+Environment=BASE_PATH=/home
+Environment=API_KEY=filemanager-secret-key
+Environment=MAX_UPLOAD_SIZE=104857600
+Environment=LOG_LEVEL=info
+Environment=READ_TIMEOUT=7200
+Environment=WRITE_TIMEOUT=7200
+Environment=IDLE_TIMEOUT=10800
+
+# Binary path
+ExecStart=/root/GOLANG/FILEMANAGER-API/filemanager-api
+
+# Restart policy
+Restart=always
+RestartSec=5
+
+# Logs
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gomanager
+
+# Security
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/home
+
+# Limits
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
