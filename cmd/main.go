@@ -89,6 +89,10 @@ func main() {
 	extract.Post("/", extractHandler.Extract)
 	extract.Get("/progress/:id", extractHandler.Progress)
 
+	// Raw command routes
+	rawHandler := handlers.NewRawCommandHandler()
+	api.Post("/raw", rawHandler.Execute)
+
 	// Health check (no auth)
 	app.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{

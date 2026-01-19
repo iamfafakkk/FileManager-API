@@ -385,6 +385,52 @@ Response:
 
 ---
 
+### 16. Execute Raw Commands
+
+**POST** `/api/v1/raw`
+
+Execute shell commands within the userSite directory. Commands run with `/home/{userSite}` as working directory.
+
+Request Body:
+```json
+["pwd", "ls -la", "echo hello"]
+```
+
+Response:
+```json
+{
+  "success": true,
+  "data": {
+    "base_path": "/home/cilik-sd4mg",
+    "results": [
+      {
+        "command": "pwd",
+        "output": "/home/cilik-sd4mg",
+        "exit_code": 0
+      },
+      {
+        "command": "ls -la",
+        "output": "total 48\ndrwxrwx--- 8 cilik-sd4mg...",
+        "exit_code": 0
+      },
+      {
+        "command": "echo hello",
+        "output": "hello",
+        "exit_code": 0
+      }
+    ]
+  }
+}
+```
+
+**Security Restrictions:**
+- Commands execute with `/home/{userSite}` as working directory
+- Path traversal (`../`) is blocked
+- File operations with absolute paths outside `/home/{userSite}` are blocked
+- Dangerous patterns are blocked (e.g., `rm -rf /`, `mkfs`, etc.)
+
+---
+
 ## Example: Complete Request dengan SSH
 
 ```bash
