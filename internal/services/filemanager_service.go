@@ -139,6 +139,11 @@ func (s *FileManagerService) IsRemote() bool {
 	return s.isRemote
 }
 
+// GetFullPath validates and returns the full path for a relative path
+func (s *FileManagerService) GetFullPath(relativePath string) (string, error) {
+	return utils.ValidatePath(s.basePath, relativePath)
+}
+
 // runSSHCommand executes a command on the remote server via SSH
 func (s *FileManagerService) runSSHCommand(cmd string) error {
 	if s.sshClient == nil {
