@@ -151,28 +151,23 @@ func (h *FileManagerHandler) Download(c *fiber.Ctx) error {
 		)
 	}
 
-	reader, info, err := svc.GetContent(path)
-	if err != nil {
-		if svc.IsRemote() {
-			svc.Close()
-		}
-		status := fiber.StatusInternalServerError
-		if errors.Is(err, services.ErrNotFound) {
-			status = fiber.StatusNotFound
-		} else if errors.Is(err, services.ErrNotAFile) {
-			status = fiber.StatusBadRequest
-		}
-		return c.Status(status).JSON(
-			models.NewErrorResponse("Failed to download", "DOWNLOAD_ERROR", err.Error()),
-		)
-	}
-
-	c.Set("Content-Type", info.MimeType)
-	c.Set("Content-Disposition", "attachment; filename=\""+info.Name+"\"")
-
-	// For remote files, we must read all content before closing SSH connection
-	// because SendStream needs the reader to remain valid during transmission
+	// For remote files, use the streaming approach
 	if svc.IsRemote() {
+		reader, info, err := svc.GetContent(path)
+		if err != nil {
+			svc.Close()
+			status := fiber.StatusInternalServerError
+			if errors.Is(err, services.ErrNotFound) {
+				status = fiber.StatusNotFound
+			} else if errors.Is(err, services.ErrNotAFile) {
+				status = fiber.StatusBadRequest
+			}
+			return c.Status(status).JSON(
+				models.NewErrorResponse("Failed to download", "DOWNLOAD_ERROR", err.Error()),
+			)
+		}
+
+		// Read all content before closing SSH connection
 		data, readErr := io.ReadAll(reader)
 		reader.Close()
 		svc.Close()
@@ -181,12 +176,43 @@ func (h *FileManagerHandler) Download(c *fiber.Ctx) error {
 				models.NewErrorResponse("Failed to download", "DOWNLOAD_ERROR", readErr.Error()),
 			)
 		}
+
+		c.Set("Content-Type", info.MimeType)
+		c.Set("Content-Disposition", "attachment; filename=\""+info.Name+"\"")
 		return c.Send(data)
 	}
 
-	// For local files, streaming works fine
-	defer reader.Close()
-	return c.SendStream(reader, int(info.Size))
+	// For local files, use SendFile which is more reliable
+	fullPath, err := svc.GetFullPath(path)
+	if err != nil {
+		status := fiber.StatusInternalServerError
+		if errors.Is(err, services.ErrNotFound) {
+			status = fiber.StatusNotFound
+		}
+		return c.Status(status).JSON(
+			models.NewErrorResponse("Failed to download", "DOWNLOAD_ERROR", err.Error()),
+		)
+	}
+
+	info, err := svc.GetInfo(path)
+	if err != nil {
+		status := fiber.StatusInternalServerError
+		if errors.Is(err, services.ErrNotFound) {
+			status = fiber.StatusNotFound
+		}
+		return c.Status(status).JSON(
+			models.NewErrorResponse("Failed to download", "DOWNLOAD_ERROR", err.Error()),
+		)
+	}
+
+	if info.IsDir {
+		return c.Status(fiber.StatusBadRequest).JSON(
+			models.NewErrorResponse("Failed to download", "DOWNLOAD_ERROR", "Cannot download a directory"),
+		)
+	}
+
+	c.Set("Content-Disposition", "attachment; filename=\""+info.Name+"\"")
+	return c.SendFile(fullPath, false)
 }
 
 // CreateFile handles POST /api/v1/fs/file
